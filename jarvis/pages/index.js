@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Head from 'next/head';
 
 export default function Home() {
@@ -6,6 +6,29 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [data, setData] = useState(null);
+  useEffect(() => {
+  if (typeof window === 'undefined') return;
+
+  const params = new URLSearchParams(window.location.search);
+  const tokenFromUrl = params.get('token');
+  const savedToken = localStorage.getItem('jarvis_token');
+
+  if (tokenFromUrl) {
+    setToken(tokenFromUrl);
+    localStorage.setItem('jarvis_token', tokenFromUrl);
+    window.history.replaceState({}, document.title, '/');
+    return;
+  }
+
+  if (savedToken) {
+    setToken(savedToken);
+  }
+}, []);
+  useEffect(() => {
+  if (token && !data) {
+    connect();
+  }
+}, [token]);
 
   const fmt = (n) => {
     if (!n) return '—';
