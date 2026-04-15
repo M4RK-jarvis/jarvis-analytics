@@ -102,7 +102,12 @@ export default function Home() {
           onChange={e => setToken(e.target.value)}
           onKeyPress={e => e.key === 'Enter' && connect()}
         />
-        <button style={styles.connectBtn} onClick={connect}>📸 Connecter mon Instagram</button>
+        <button
+  style={styles.connectBtn}
+  onClick={() => window.location.href = '/api/auth/meta/login'}
+>
+  🚀 Connecter mon Instagram
+</button>
       </div>
     </div>
   );
