@@ -6,29 +6,31 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [data, setData] = useState(null);
+  
+
   useEffect(() => {
-  if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') return;
 
-  const params = new URLSearchParams(window.location.search);
-  const tokenFromUrl = params.get('token');
-  const savedToken = localStorage.getItem('jarvis_token');
+    const params = new URLSearchParams(window.location.search);
+    const tokenFromUrl = params.get('token');
+    const savedToken = localStorage.getItem('jarvis_token');
 
-  if (tokenFromUrl) {
-    setToken(tokenFromUrl);
-    localStorage.setItem('jarvis_token', tokenFromUrl);
-    window.history.replaceState({}, document.title, '/');
-    return;
-  }
+    if (tokenFromUrl) {
+      const cleanToken = tokenFromUrl.trim();
+      setToken(cleanToken);
+      localStorage.setItem('jarvis_token', cleanToken);
+      window.history.replaceState({}, document.title, '/');
+      connectWithToken(cleanToken);
+      return;
+    }
 
-  if (savedToken) {
-    setToken(savedToken);
-  }
-}, []);
-  useEffect(() => {
-  if (token && !data) {
-    connect();
-  }
-}, [token]);
+    if (savedToken) {
+      const cleanToken = savedToken.trim();
+      setToken(cleanToken);
+      connectWithToken(cleanToken);
+    }
+  }, []);
+  
 
   const fmt = (n) => {
     if (!n) return '—';
@@ -37,57 +39,70 @@ export default function Home() {
     return n.toString();
   };
 
-  const connect = async () => {
-    if (!token.trim()) return;
-    setLoading(true);
-    setError('');
+  const connectWithToken = async (tokenValue) => {
+  if (!tokenValue?.trim()) return;
 
-    try {
-      // Fetch profile
-      const profileRes = await fetch(`/api/instagram?token=${encodeURIComponent(token)}&endpoint=profile`);
-      const profile = await profileRes.json();
-      if (profile.error) throw new Error(profile.error);
+  setLoading(true);
+  setError('');
 
-      // Fetch media
-      const mediaRes = await fetch(`/api/instagram?token=${encodeURIComponent(token)}&endpoint=media`);
-      const media = await mediaRes.json();
+  try {
+    const safeToken = tokenValue.trim();
 
-      // Fetch insights
-      const insightsRes = await fetch(`/api/instagram?token=${encodeURIComponent(token)}&endpoint=insights`);
-      const insights = await insightsRes.json();
+    const profileRes = await fetch(`/api/instagram?token=${encodeURIComponent(safeToken)}&endpoint=profile`);
+    const profile = await profileRes.json();
+    if (profile.error) throw new Error(profile.error);
 
-      // Calculate engagement
-      let totalLikes = 0, totalComments = 0, totalSaves = 0;
-      if (media.data) {
-        media.data.forEach(p => {
-          totalLikes += p.like_count || 0;
-          totalComments += p.comments_count || 0;
-          totalSaves += p.saved || 0;
-        });
-      }
+    const mediaRes = await fetch(`/api/instagram?token=${encodeURIComponent(safeToken)}&endpoint=media`);
+    const media = await mediaRes.json();
 
-      const followers = profile.followers_count || 0;
-      const engRate = followers > 0 && media.data?.length > 0
-        ? ((totalLikes + totalComments) / (followers * media.data.length) * 100).toFixed(1)
-        : '—';
+    const insightsRes = await fetch(`/api/instagram?token=${encodeURIComponent(safeToken)}&endpoint=insights`);
+    const insights = await insightsRes.json();
 
-      // Parse insights
-      let reach = 0, impressions = 0;
-      if (insights.data) {
-        insights.data.forEach(m => {
-          if (m.name === 'reach') reach = m.values?.reduce((a,b) => a + (b.value||0), 0) || 0;
-          if (m.name === 'impressions') impressions = m.values?.reduce((a,b) => a + (b.value||0), 0) || 0;
-        });
-      }
-
-      setData({ profile, media: media.data || [], totalLikes, totalComments, totalSaves, engRate, reach, impressions, followers });
-      localStorage.setItem('jarvis_token', token);
-    } catch (err) {
-      setError('Token invalide ou expiré. Vérifie que ton compte est en mode Business ou Creator.');
+    let totalLikes = 0, totalComments = 0, totalSaves = 0;
+    if (media.data) {
+      media.data.forEach(p => {
+        totalLikes += p.like_count || 0;
+        totalComments += p.comments_count || 0;
+        totalSaves += p.saved || 0;
+      });
     }
-    setLoading(false);
-  };
 
+    const followers = profile.followers_count || 0;
+    const engRate = followers > 0 && media.data?.length > 0
+      ? ((totalLikes + totalComments) / (followers * media.data.length) * 100).toFixed(1)
+      : '—';
+
+    let reach = 0, impressions = 0;
+    if (insights.data) {
+      insights.data.forEach(m => {
+        if (m.name === 'reach') reach = m.values?.reduce((a,b) => a + (b.value || 0), 0) || 0;
+        if (m.name === 'impressions') impressions = m.values?.reduce((a,b) => a + (b.value || 0), 0) || 0;
+      });
+    }
+
+    setData({
+      profile,
+      media: media.data || [],
+      totalLikes,
+      totalComments,
+      totalSaves,
+      engRate,
+      reach,
+      impressions,
+      followers
+    });
+
+    localStorage.setItem('jarvis_token', safeToken);
+  } catch (err) {
+    setError('Token invalide ou expiré. Vérifie que ton compte est en mode Business ou Creator.');
+  }
+
+  setLoading(false);
+};
+
+const connect = async () => {
+  await connectWithToken(token);
+};
   const disconnect = () => {
     setData(null);
     setToken('');
