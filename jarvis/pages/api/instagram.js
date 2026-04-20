@@ -5,58 +5,46 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Token manquant' })
   }
 
-  const base = 'https://graph.facebook.com/v19.0'
+  const base = 'https://graph.instagram.com/v19.0'
 
   try {
-    // 1) Récupère les pages accessibles par l'utilisateur
-    const pagesRes = await fetch(
-      `${base}/me/accounts?fields=id,name,access_token,instagram_business_account&access_token=${encodeURIComponent(token)}`
+    // 1) Récupère l'ig_user_id depuis le token Instagram directement
+    const meRes = await fetch(
+      `${base}/me?fields=id,username&access_token=${encodeURIComponent(token)}`
     )
-    const pagesData = await pagesRes.json()
+    const meData = await meRes.json()
 
-    if (pagesData.error) {
-      return res.status(400).json({ error: pagesData.error.message, details: pagesData })
+    if (meData.error) {
+      return res.status(400).json({ error: meData.error.message, details: meData })
     }
 
-    if (!pagesData.data || !pagesData.data.length) {
-      return res.status(400).json({ error: 'Aucune page Facebook trouvée pour ce compte.' })
+    const igUserId = meData.id
+
+    if (!igUserId) {
+      return res.status(400).json({ error: 'Impossible de récupérer l\'ID Instagram depuis ce token.' })
     }
-
-    // 2) Trouve la première page reliée à un compte Instagram pro
-    const pageWithIg = pagesData.data.find(
-      (page) => page.instagram_business_account && page.instagram_business_account.id
-    )
-
-    if (!pageWithIg) {
-      return res.status(400).json({
-        error: 'Aucun compte Instagram professionnel relié à une page Facebook trouvée.'
-      })
-    }
-
-    const igUserId = pageWithIg.instagram_business_account.id
-    const pageAccessToken = pageWithIg.access_token
 
     let url
 
     switch (endpoint) {
       case 'profile':
-        url = `${base}/${igUserId}?fields=id,username,followers_count,media_count,biography,profile_picture_url&access_token=${encodeURIComponent(pageAccessToken)}`
+        url = `${base}/${igUserId}?fields=id,username,followers_count,media_count,biography,profile_picture_url&access_token=${encodeURIComponent(token)}`
         break
 
       case 'media':
-        url = `${base}/${igUserId}/media?fields=id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count&limit=20&access_token=${encodeURIComponent(pageAccessToken)}`
+        url = `${base}/${igUserId}/media?fields=id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count&limit=20&access_token=${encodeURIComponent(token)}`
         break
 
       case 'insights':
-        url = `${base}/${igUserId}/insights?metric=reach,impressions,profile_views,follower_count&period=day&access_token=${encodeURIComponent(pageAccessToken)}`
+        url = `${base}/${igUserId}/insights?metric=reach,impressions,profile_views,follower_count&period=day&access_token=${encodeURIComponent(token)}`
         break
 
       case 'audience':
-        url = `${base}/${igUserId}/insights?metric=audience_city,audience_country,audience_gender_age&period=lifetime&access_token=${encodeURIComponent(pageAccessToken)}`
+        url = `${base}/${igUserId}/insights?metric=audience_city,audience_country,audience_gender_age&period=lifetime&access_token=${encodeURIComponent(token)}`
         break
 
       default:
-        url = `${base}/${igUserId}?fields=id,username&access_token=${encodeURIComponent(pageAccessToken)}`
+        url = `${base}/${igUserId}?fields=id,username&access_token=${encodeURIComponent(token)}`
     }
 
     const response = await fetch(url)
@@ -67,6 +55,7 @@ export default async function handler(req, res) {
     }
 
     return res.status(200).json(data)
+
   } catch (err) {
     return res.status(500).json({ error: err.message })
   }
