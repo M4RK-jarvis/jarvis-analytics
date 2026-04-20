@@ -53,10 +53,12 @@ export default function Home() {
     if (profile.error) throw new Error(profile.error);
 
     const mediaRes = await fetch(`/api/instagram?token=${encodeURIComponent(safeToken)}&endpoint=media`);
-    const media = await mediaRes.json();
+const media = await mediaRes.json();
+if (media.error) throw new Error(`media: ${media.error}`);
 
-    const insightsRes = await fetch(`/api/instagram?token=${encodeURIComponent(safeToken)}&endpoint=insights`);
-    const insights = await insightsRes.json();
+const insightsRes = await fetch(`/api/instagram?token=${encodeURIComponent(safeToken)}&endpoint=insights`);
+const insights = await insightsRes.json();
+if (insights.error) throw new Error(`insights: ${insights.error}`);
 
     let totalLikes = 0, totalComments = 0, totalSaves = 0;
     if (media.data) {
@@ -94,8 +96,8 @@ export default function Home() {
 
     localStorage.setItem('jarvis_token', safeToken);
   } catch (err) {
-    setError('Token invalide ou expiré. Vérifie que ton compte est en mode Business ou Creator.');
-  }
+  setError(err.message || 'Erreur inconnue');
+}
 
   setLoading(false);
 };
