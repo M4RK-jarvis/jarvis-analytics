@@ -56,9 +56,16 @@ export default function Home() {
 const media = await mediaRes.json();
 if (media.error) throw new Error(`media: ${media.error}`);
 
-const insightsRes = await fetch(`/api/instagram?token=${encodeURIComponent(safeToken)}&endpoint=insights`);
-const insights = await insightsRes.json();
-if (insights.error) throw new Error(`insights: ${insights.error}`);
+let insights = { data: [] };
+
+try {
+  const insightsRes = await fetch(`/api/instagram?token=${encodeURIComponent(safeToken)}&endpoint=insights`);
+  const insightsData = await insightsRes.json();
+  if (!insightsData.error) {
+    insights = insightsData;
+  }
+} catch (e) {
+}
 
     let totalLikes = 0, totalComments = 0, totalSaves = 0;
     if (media.data) {
