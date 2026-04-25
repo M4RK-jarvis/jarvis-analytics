@@ -1,14 +1,14 @@
 export default function handler(req, res) {
   const clientId = process.env.META_APP_ID
   const redirectUri = process.env.META_REDIRECT_URI
-  const scope = process.env.META_SCOPES
 
-  const url = new URL('https://www.facebook.com/v19.0/dialog/oauth')
+  if (!clientId || !redirectUri) {
+    return res.status(500).json({ error: 'Variables d\'environnement META_APP_ID ou META_REDIRECT_URI manquantes.' })
+  }
 
-  url.searchParams.set('client_id', clientId)
-  url.searchParams.set('redirect_uri', redirectUri)
-  url.searchParams.set('scope', scope)
-  url.searchParams.set('response_type', 'code')
+  const scope = 'user_profile,user_media'
 
-  res.redirect(url.toString())
+  const authUrl = `https://api.instagram.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&response_type=code`
+
+  res.redirect(authUrl)
 }
