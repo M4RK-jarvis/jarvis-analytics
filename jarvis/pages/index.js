@@ -12,29 +12,35 @@ export default function Home() {
 
     const params = new URLSearchParams(window.location.search);
     const tokenFromUrl = params.get('token');
+    const igidFromUrl = params.get('igid');
     const errorFromUrl = params.get('error');
-    const savedToken = localStorage.getItem('jarvis_token');
 
-    // Nettoie l'URL dans tous les cas
     window.history.replaceState({}, document.title, '/');
 
     if (errorFromUrl) {
-      setError(decodeURIComponent(errorFromUrl));
+      const msg = decodeURIComponent(errorFromUrl)
+      // Message lisible selon les cas Meta
+      if (msg === 'aucun_compte_instagram_business_lie') {
+        setError('Aucun compte Instagram professionnel lié à ta Page Facebook. Va dans les paramètres Instagram → Compte → Passer en compte professionnel, puis lie-le à ta Page.')
+      } else {
+        setError(msg)
+      }
       return;
     }
 
-    if (tokenFromUrl) {
-      const cleanToken = tokenFromUrl.trim();
-      setToken(cleanToken);
-      localStorage.setItem('jarvis_token', cleanToken);
-      connectWithToken(cleanToken);
+    if (tokenFromUrl && igidFromUrl) {
+      const cleanToken = decodeURIComponent(tokenFromUrl).trim()
+      const cleanIgid = decodeURIComponent(igidFromUrl).trim()
+      localStorage.setItem('jarvis_token', cleanToken)
+      localStorage.setItem('jarvis_igid', cleanIgid)
+      connectWithToken(cleanToken, cleanIgid)
       return;
     }
 
-    if (savedToken) {
-      const cleanToken = savedToken.trim();
-      setToken(cleanToken);
-      connectWithToken(cleanToken);
+    const savedToken = localStorage.getItem('jarvis_token')
+    const savedIgid = localStorage.getItem('jarvis_igid')
+    if (savedToken && savedIgid) {
+      connectWithToken(savedToken.trim(), savedIgid.trim())
     }
   }, []);
 
@@ -45,40 +51,33 @@ export default function Home() {
     return n.toString();
   };
 
-  const connectWithToken = async (tokenValue) => {
-    if (!tokenValue?.trim()) return;
+  const connectWithToken = async (tokenValue, igidValue) => {
+    if (!tokenValue?.trim() || !igidValue?.trim()) return;
 
     setLoading(true);
     setError('');
 
     try {
-      const safeToken = tokenValue.trim();
+      const t = encodeURIComponent(tokenValue.trim())
+      const ig = encodeURIComponent(igidValue.trim())
 
-      // Profil — disponible sans App Review
-      const profileRes = await fetch(`/api/instagram?token=${encodeURIComponent(safeToken)}&endpoint=profile`);
-      const profile = await profileRes.json();
-      if (profile.error) throw new Error(profile.error);
+      const profileRes = await fetch(`/api/instagram?token=${t}&igid=${ig}&endpoint=profile`)
+      const profile = await profileRes.json()
+      if (profile.error) throw new Error(profile.error)
 
-      // Médias — disponibles sans App Review (like_count, comments_count inclus)
-      const mediaRes = await fetch(`/api/instagram?token=${encodeURIComponent(safeToken)}&endpoint=media`);
-      const media = await mediaRes.json();
-      if (media.error) throw new Error(`Médias : ${media.error}`);
+      const mediaRes = await fetch(`/api/instagram?token=${t}&igid=${ig}&endpoint=media`)
+      const media = await mediaRes.json()
+      if (media.error) throw new Error(`Médias : ${media.error}`)
 
-      // Insights — nécessitent l'App Review, on tente sans bloquer
-      let insights = { data: [], locked: false };
+      let insights = { data: [], locked: true }
       try {
-        const insightsRes = await fetch(`/api/instagram?token=${encodeURIComponent(safeToken)}&endpoint=insights`);
-        const insightsData = await insightsRes.json();
-        if (insightsData.error) {
-          insights = { data: [], locked: true };
-        } else {
-          insights = insightsData;
+        const insightsRes = await fetch(`/api/instagram?token=${t}&igid=${ig}&endpoint=insights`)
+        const insightsData = await insightsRes.json()
+        if (!insightsData.error) {
+          insights = { ...insightsData, locked: false }
         }
-      } catch {
-        insights = { data: [], locked: true };
-      }
+      } catch { /* insights verrouillés */ }
 
-      // Calculs engagement
       let totalLikes = 0, totalComments = 0;
       if (media.data) {
         media.data.forEach(p => {
@@ -93,7 +92,7 @@ export default function Home() {
         : null;
 
       let reach = 0, impressions = 0;
-      if (insights.data) {
+      if (!insights.locked && insights.data) {
         insights.data.forEach(m => {
           if (m.name === 'reach') reach = m.values?.reduce((a, b) => a + (b.value || 0), 0) || 0;
           if (m.name === 'impressions') impressions = m.values?.reduce((a, b) => a + (b.value || 0), 0) || 0;
@@ -109,10 +108,11 @@ export default function Home() {
         reach,
         impressions,
         followers,
-        insightsLocked: insights.locked || (!reach && !impressions),
+        insightsLocked: insights.locked,
       });
 
-      localStorage.setItem('jarvis_token', safeToken);
+      localStorage.setItem('jarvis_token', tokenValue.trim())
+      localStorage.setItem('jarvis_igid', igidValue.trim())
     } catch (err) {
       setError(err.message || 'Erreur inconnue');
     }
@@ -124,18 +124,14 @@ export default function Home() {
     window.location.href = '/api/auth/meta/login';
   };
 
-  const connectManual = async () => {
-    await connectWithToken(token);
-  };
-
   const disconnect = () => {
     setData(null);
     setToken('');
     setError('');
     localStorage.removeItem('jarvis_token');
+    localStorage.removeItem('jarvis_igid');
   };
 
-  // ─── LOADING ────────────────────────────────────────────────
   if (loading) return (
     <div style={styles.center}>
       <Head><title>Jarvis Analytics</title></Head>
@@ -144,14 +140,13 @@ export default function Home() {
     </div>
   );
 
-  // ─── CONNECT SCREEN ─────────────────────────────────────────
   if (!data) return (
     <div style={styles.center}>
       <Head><title>Jarvis Analytics</title></Head>
       <div style={styles.connectCard}>
         <div style={styles.igIcon}>📊</div>
         <h1 style={styles.title}>Jarvis</h1>
-        <p style={styles.sub}>Connecte ton Instagram pour visualiser tes métriques en temps réel.<br /><strong>Aucune donnée n'est stockée.</strong></p>
+        <p style={styles.sub}>Connecte ton compte Instagram professionnel pour visualiser tes métriques.<br /><strong>Aucune donnée n'est stockée.</strong></p>
 
         {error && (
           <div style={styles.errorBox}>
@@ -159,31 +154,14 @@ export default function Home() {
           </div>
         )}
 
-        {/* BOUTON OAUTH — connexion directe */}
         <button style={styles.oauthBtn} onClick={connectWithOAuth}>
           <span style={{ marginRight: 8 }}>📸</span>
           Connecter mon Instagram
-        </button>
-
-        <div style={styles.divider}>
-          <span style={styles.dividerText}>ou avec un token manuel</span>
-        </div>
-
-        <input
-          style={styles.input}
-          placeholder="Colle ton token Instagram ici..."
-          value={token}
-          onChange={e => setToken(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && connectManual()}
-        />
-        <button style={styles.connectBtn} onClick={connectManual}>
-          Connecter avec le token
         </button>
       </div>
     </div>
   );
 
-  // ─── DASHBOARD ───────────────────────────────────────────────
   const { profile, media, totalLikes, totalComments, engRate, reach, impressions, followers, insightsLocked } = data;
 
   return (
@@ -210,18 +188,16 @@ export default function Home() {
           <div style={styles.liveBadge}><span style={styles.liveDot}></span>En direct</div>
         </div>
 
-        {/* NOTICE App Review */}
         {insightsLocked && (
           <div style={styles.reviewNotice}>
             <span style={{ fontSize: 16, marginRight: 8 }}>🔐</span>
             <span>
-              <strong>Reach et impressions verrouillés</strong> — Ces métriques seront disponibles après la validation Meta App Review.
-              Les données d'engagement (likes, commentaires, médias) sont actives.
+              <strong>Reach et impressions verrouillés</strong> — Disponibles après la validation Meta App Review.
+              Engagement, médias et profil sont actifs.
             </span>
           </div>
         )}
 
-        {/* KPI GRID */}
         <div style={styles.kpiGrid}>
           <KPI icon="👥" value={fmt(followers)} label="Abonnés" badge="Disponible" color="#ff2d55" />
           <KPI icon="📊" value={engRate ? engRate + '%' : '—'} label="Taux d'engagement" badge="Disponible" color="#af52de" />
@@ -229,7 +205,6 @@ export default function Home() {
           <KPI icon="🔥" value={insightsLocked ? null : fmt(impressions)} label="Impressions 30j" badge={insightsLocked ? 'App Review requis' : 'Disponible'} color="#ff9500" locked={insightsLocked} />
         </div>
 
-        {/* ENGAGEMENT DETAIL */}
         <div style={styles.section}>
           <div style={styles.sectionLabel}>Détail engagement</div>
           <div style={styles.card}>
@@ -239,7 +214,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* GRID MÉDIAS */}
         <div style={styles.section}>
           <div style={styles.sectionLabel}>Tes derniers posts</div>
           <div style={styles.postsGrid}>
@@ -265,17 +239,14 @@ export default function Home() {
           </div>
         </div>
 
-        {/* INFO App Review */}
         <div style={styles.infoBox}>
-          <strong>💡 Pour débloquer toutes les métriques</strong> (reach, impressions, stories, audience démographique),
-          ton app Meta doit passer le contrôle App Review. Les données actuelles (profil, médias, engagement) sont déjà actives.
+          <strong>💡 Pour débloquer toutes les métriques</strong> (reach, impressions, audience démographique),
+          l'app Meta doit passer l'App Review. Les données actuelles (profil, médias, engagement) sont déjà actives.
         </div>
       </div>
     </div>
   );
 }
-
-// ─── COMPOSANTS ──────────────────────────────────────────────
 
 function KPI({ icon, value, label, badge, color, locked }) {
   return (
@@ -308,21 +279,15 @@ function EngRow({ icon, label, value, pct, color }) {
   );
 }
 
-// ─── STYLES ──────────────────────────────────────────────────
-
 const styles = {
   center: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f2f2f7', flexDirection: 'column' },
   loader: { width: 40, height: 40, border: '3px solid #e5e5ea', borderTopColor: '#0071e3', borderRadius: '50%', animation: 'spin 0.8s linear infinite' },
-  connectCard: { background: '#fff', borderRadius: 24, padding: '48px 40px', maxWidth: 460, width: '100%', boxShadow: '0 4px 40px rgba(0,0,0,0.10)', textAlign: 'center' },
+  connectCard: { background: '#fff', borderRadius: 24, padding: '48px 40px', maxWidth: 420, width: '100%', boxShadow: '0 4px 40px rgba(0,0,0,0.10)', textAlign: 'center' },
   igIcon: { width: 72, height: 72, borderRadius: 22, background: 'linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, margin: '0 auto 24px', boxShadow: '0 8px 24px rgba(220,39,67,0.35)' },
   title: { fontSize: 28, fontWeight: 800, color: '#1c1c1e', letterSpacing: -0.5, marginBottom: 10, fontFamily: 'system-ui' },
-  sub: { fontSize: 15, color: '#86868b', lineHeight: 1.6, marginBottom: 24, fontFamily: 'system-ui' },
-  errorBox: { background: 'rgba(255,59,48,0.08)', border: '1px solid rgba(255,59,48,0.2)', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#ff3b30', marginBottom: 16, textAlign: 'left', fontFamily: 'system-ui' },
-  oauthBtn: { width: '100%', background: 'linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)', color: '#fff', border: 'none', borderRadius: 12, padding: '16px', fontFamily: 'system-ui', fontSize: 15, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 20px rgba(220,39,67,0.35)', marginBottom: 16 },
-  divider: { display: 'flex', alignItems: 'center', margin: '4px 0 16px' },
-  dividerText: { flex: 1, textAlign: 'center', fontSize: 12, color: '#aeaeb2', fontFamily: 'system-ui', borderTop: '1px solid #e5e5ea', paddingTop: 8 },
-  input: { width: '100%', background: '#f2f2f7', border: '1.5px solid rgba(0,0,0,0.13)', borderRadius: 10, padding: '14px 16px', fontFamily: 'system-ui', fontSize: 14, color: '#1c1c1e', outline: 'none', marginBottom: 10, boxSizing: 'border-box' },
-  connectBtn: { width: '100%', background: '#1c1c1e', color: '#fff', border: 'none', borderRadius: 10, padding: 14, fontFamily: 'system-ui', fontSize: 14, fontWeight: 600, cursor: 'pointer' },
+  sub: { fontSize: 15, color: '#86868b', lineHeight: 1.6, marginBottom: 28, fontFamily: 'system-ui' },
+  errorBox: { background: 'rgba(255,59,48,0.08)', border: '1px solid rgba(255,59,48,0.2)', borderRadius: 10, padding: '12px 14px', fontSize: 13, color: '#ff3b30', marginBottom: 16, textAlign: 'left', fontFamily: 'system-ui', lineHeight: 1.5 },
+  oauthBtn: { width: '100%', background: 'linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)', color: '#fff', border: 'none', borderRadius: 12, padding: '16px', fontFamily: 'system-ui', fontSize: 15, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 20px rgba(220,39,67,0.35)' },
   dash: { minHeight: '100vh', background: '#f2f2f7' },
   nav: { background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(0,0,0,0.08)', position: 'sticky', top: 0, zIndex: 100, padding: '0 24px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
   navBrand: { display: 'flex', alignItems: 'center', gap: 10 },
