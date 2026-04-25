@@ -8,14 +8,14 @@ export default async function handler(req, res) {
   const base = 'https://graph.instagram.com/v19.0'
 
   try {
-    // 1) Récupère l'ig_user_id depuis le token Instagram directement
+    // Récupère l'ig_user_id depuis le token Instagram
     const meRes = await fetch(
       `${base}/me?fields=id,username&access_token=${encodeURIComponent(token)}`
     )
     const meData = await meRes.json()
 
     if (meData.error) {
-      return res.status(400).json({ error: meData.error.message, details: meData })
+      return res.status(400).json({ error: meData.error.message, code: meData.error.code })
     }
 
     const igUserId = meData.id
@@ -32,9 +32,11 @@ export default async function handler(req, res) {
         break
 
       case 'media':
+        // like_count et comments_count disponibles sans App Review
         url = `${base}/${igUserId}/media?fields=id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count&limit=20&access_token=${encodeURIComponent(token)}`
         break
 
+      // Ces endpoints nécessitent l'App Review - on les laisse pour préparer la review
       case 'insights':
         url = `${base}/${igUserId}/insights?metric=reach,impressions,profile_views,follower_count&period=day&access_token=${encodeURIComponent(token)}`
         break
@@ -51,7 +53,12 @@ export default async function handler(req, res) {
     const data = await response.json()
 
     if (data.error) {
-      return res.status(400).json({ error: data.error.message, details: data })
+      // On retourne l'erreur Meta avec le code pour que le frontend puisse adapter l'affichage
+      return res.status(400).json({
+        error: data.error.message,
+        code: data.error.code,
+        type: data.error.type,
+      })
     }
 
     return res.status(200).json(data)
