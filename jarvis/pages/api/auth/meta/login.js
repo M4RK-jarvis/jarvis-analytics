@@ -11,7 +11,7 @@ export default function handler(req, res) {
   // - pages_show_list          → nécessaire pour /me/accounts (trouver la Page liée)
   const scope = 'instagram_business_basic,pages_show_list'
 
-  const authUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&response_type=code`
+  const authUrl = `https://www.instagram.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&response_type=code`
 
   res.redirect(authUrl)
 }
