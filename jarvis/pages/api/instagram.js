@@ -2,10 +2,10 @@ export default async function handler(req, res) {
   const { token, igid, endpoint } = req.query
 
   if (!token || !igid) {
-    return res.status(400).json({ error: 'Token ou ID Instagram Business manquant.' })
+    return res.status(400).json({ error: 'Token ou ID Instagram manquant.' })
   }
 
-  const base = 'https://graph.facebook.com/v19.0'
+  const base = 'https://graph.instagram.com/v21.0'
 
   try {
     let url
