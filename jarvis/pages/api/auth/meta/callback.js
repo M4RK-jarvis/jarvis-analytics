@@ -18,46 +18,43 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 1) Échange du code contre un user access token (nouvelle API → Facebook Graph)
-    const tokenRes = await fetch(
-      `https://graph.facebook.com/v19.0/oauth/access_token?client_id=${clientId}&client_secret=${clientSecret}&redirect_uri=${encodeURIComponent(redirectUri)}&code=${code}`
-    )
+    // 1) Échange du code contre un short-lived token (nouvelle API Instagram)
+    const body = new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      grant_type: 'authorization_code',
+      redirect_uri: redirectUri,
+      code: code,
+    })
+
+    const tokenRes = await fetch('https://api.instagram.com/oauth/access_token', {
+      method: 'POST',
+      body: body,
+    })
     const tokenData = await tokenRes.json()
 
-    if (tokenData.error) {
-      return res.redirect(`/?error=${encodeURIComponent(tokenData.error.message || 'token_invalide')}`)
+    if (tokenData.error_type || tokenData.error) {
+      return res.redirect(`/?error=${encodeURIComponent(tokenData.error_message || tokenData.error || 'token_invalide')}`)
     }
 
-    const userToken = tokenData.access_token
+    const shortToken = tokenData.access_token
+    const igUserId = tokenData.user_id
 
-    if (!userToken) {
-      return res.redirect('/?error=token_manquant')
+    if (!shortToken || !igUserId) {
+      return res.redirect('/?error=token_ou_id_manquant')
     }
 
-    // 2) Récupère les Pages Facebook et leur compte Instagram Business lié
-    const pagesRes = await fetch(
-      `https://graph.facebook.com/v19.0/me/accounts?fields=id,name,access_token,instagram_business_account&access_token=${userToken}`
+    // 2) Échange contre un long-lived token (60 jours)
+    const longRes = await fetch(
+      `https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${clientSecret}&access_token=${shortToken}`
     )
-    const pagesData = await pagesRes.json()
+    const longData = await longRes.json()
 
-    if (pagesData.error) {
-      return res.redirect(`/?error=${encodeURIComponent(pagesData.error.message)}`)
-    }
+    const accessToken = longData.access_token || shortToken
 
-    // Trouve la première Page avec un compte Instagram Business lié
-    const pages = pagesData.data || []
-    const linkedPage = pages.find(p => p.instagram_business_account?.id)
-
-    if (!linkedPage) {
-      return res.redirect('/?error=aucun_compte_instagram_business_lie')
-    }
-
-    const igBusinessId = linkedPage.instagram_business_account.id
-    const pageToken = linkedPage.access_token // token de la Page (recommandé pour les appels IG)
-
-    // 3) Redirige vers le dashboard avec le token et l'ID IG Business
+    // 3) Redirige avec le token + l'ID IG
     return res.redirect(
-      `/?token=${encodeURIComponent(pageToken)}&igid=${encodeURIComponent(igBusinessId)}`
+      `/?token=${encodeURIComponent(accessToken)}&igid=${encodeURIComponent(igUserId)}`
     )
 
   } catch (err) {
