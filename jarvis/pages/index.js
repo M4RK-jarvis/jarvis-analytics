@@ -3,6 +3,7 @@ import Head from 'next/head';
 
 export default function Home() {
   const [token, setToken] = useState('');
+  const [igid, setIgid] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [data, setData] = useState(null);
@@ -19,9 +20,8 @@ export default function Home() {
 
     if (errorFromUrl) {
       const msg = decodeURIComponent(errorFromUrl)
-      // Message lisible selon les cas Meta
       if (msg === 'aucun_compte_instagram_business_lie') {
-        setError('Aucun compte Instagram professionnel lié à ta Page Facebook. Va dans les paramètres Instagram → Compte → Passer en compte professionnel, puis lie-le à ta Page.')
+        setError('Aucun compte Instagram professionnel lié à ta Page Facebook.')
       } else {
         setError(msg)
       }
@@ -73,9 +73,7 @@ export default function Home() {
       try {
         const insightsRes = await fetch(`/api/instagram?token=${t}&igid=${ig}&endpoint=insights`)
         const insightsData = await insightsRes.json()
-        if (!insightsData.error) {
-          insights = { ...insightsData, locked: false }
-        }
+        if (!insightsData.error) insights = { ...insightsData, locked: false }
       } catch { /* insights verrouillés */ }
 
       let totalLikes = 0, totalComments = 0;
@@ -100,14 +98,9 @@ export default function Home() {
       }
 
       setData({
-        profile,
-        media: media.data || [],
-        totalLikes,
-        totalComments,
-        engRate,
-        reach,
-        impressions,
-        followers,
+        profile, media: media.data || [],
+        totalLikes, totalComments, engRate,
+        reach, impressions, followers,
         insightsLocked: insights.locked,
       });
 
@@ -120,14 +113,20 @@ export default function Home() {
     setLoading(false);
   };
 
+  const connectManual = () => {
+    if (!token.trim() || !igid.trim()) {
+      setError('Remplis les deux champs : token et Instagram User ID.')
+      return
+    }
+    connectWithToken(token, igid)
+  }
+
   const connectWithOAuth = () => {
     window.location.href = '/api/auth/meta/login';
   };
 
   const disconnect = () => {
-    setData(null);
-    setToken('');
-    setError('');
+    setData(null); setToken(''); setIgid(''); setError('');
     localStorage.removeItem('jarvis_token');
     localStorage.removeItem('jarvis_igid');
   };
@@ -146,18 +145,37 @@ export default function Home() {
       <div style={styles.connectCard}>
         <div style={styles.igIcon}>📊</div>
         <h1 style={styles.title}>Jarvis</h1>
-        <p style={styles.sub}>Connecte ton compte Instagram professionnel pour visualiser tes métriques.<br /><strong>Aucune donnée n'est stockée.</strong></p>
+        <p style={styles.sub}>Connecte ton compte Instagram professionnel.</p>
 
-        {error && (
-          <div style={styles.errorBox}>
-            <strong>Erreur :</strong> {error}
-          </div>
-        )}
+        {error && <div style={styles.errorBox}><strong>Erreur :</strong> {error}</div>}
 
         <button style={styles.oauthBtn} onClick={connectWithOAuth}>
           <span style={{ marginRight: 8 }}>📸</span>
           Connecter mon Instagram
         </button>
+
+        <div style={styles.divider}><span style={styles.dividerText}>ou mode développeur</span></div>
+
+        <input
+          style={styles.input}
+          placeholder="Access Token (depuis Meta Developer)"
+          value={token}
+          onChange={e => setToken(e.target.value)}
+        />
+        <input
+          style={{ ...styles.input, marginTop: 8 }}
+          placeholder="Instagram User ID (ex: 17841400000000000)"
+          value={igid}
+          onChange={e => setIgid(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && connectManual()}
+        />
+        <button style={styles.connectBtn} onClick={connectManual}>
+          Connecter avec le token
+        </button>
+
+        <p style={styles.hint}>
+          Token disponible dans Meta Developer → API Instagram → Générez des tokens d'accès
+        </p>
       </div>
     </div>
   );
@@ -191,10 +209,7 @@ export default function Home() {
         {insightsLocked && (
           <div style={styles.reviewNotice}>
             <span style={{ fontSize: 16, marginRight: 8 }}>🔐</span>
-            <span>
-              <strong>Reach et impressions verrouillés</strong> — Disponibles après la validation Meta App Review.
-              Engagement, médias et profil sont actifs.
-            </span>
+            <span><strong>Reach et impressions verrouillés</strong> — Disponibles après la validation Meta App Review.</span>
           </div>
         )}
 
@@ -240,8 +255,8 @@ export default function Home() {
         </div>
 
         <div style={styles.infoBox}>
-          <strong>💡 Pour débloquer toutes les métriques</strong> (reach, impressions, audience démographique),
-          l'app Meta doit passer l'App Review. Les données actuelles (profil, médias, engagement) sont déjà actives.
+          <strong>💡 Pour débloquer toutes les métriques</strong> — l'app Meta doit passer l'App Review.
+          Profil, médias et engagement sont déjà actifs.
         </div>
       </div>
     </div>
@@ -252,16 +267,9 @@ function KPI({ icon, value, label, badge, color, locked }) {
   return (
     <div style={{ ...styles.kpiCard, opacity: locked ? 0.5 : 1 }}>
       <div style={{ ...styles.kpiIcon, background: color + '18' }}>{icon}</div>
-      {locked
-        ? <div style={styles.kpiLocked}>🔒</div>
-        : <div style={styles.kpiValue}>{value}</div>
-      }
+      {locked ? <div style={styles.kpiLocked}>🔒</div> : <div style={styles.kpiValue}>{value}</div>}
       <div style={styles.kpiLabel}>{label}</div>
-      <span style={{
-        ...styles.kpiBadge,
-        background: locked ? 'rgba(174,174,178,0.15)' : 'rgba(52,199,89,0.1)',
-        color: locked ? '#aeaeb2' : '#1a7a35',
-      }}>{badge}</span>
+      <span style={{ ...styles.kpiBadge, background: locked ? 'rgba(174,174,178,0.15)' : 'rgba(52,199,89,0.1)', color: locked ? '#aeaeb2' : '#1a7a35' }}>{badge}</span>
     </div>
   );
 }
@@ -271,9 +279,7 @@ function EngRow({ icon, label, value, pct, color }) {
     <div style={styles.engRow}>
       <div style={{ ...styles.engIcon, background: color + '18' }}>{icon}</div>
       <span style={styles.engName}>{label}</span>
-      <div style={styles.engBarWrap}>
-        <div style={{ ...styles.engBar, width: pct + '%', background: color }}></div>
-      </div>
+      <div style={styles.engBarWrap}><div style={{ ...styles.engBar, width: pct + '%', background: color }}></div></div>
       <span style={styles.engVal}>{value}</span>
     </div>
   );
@@ -282,12 +288,17 @@ function EngRow({ icon, label, value, pct, color }) {
 const styles = {
   center: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f2f2f7', flexDirection: 'column' },
   loader: { width: 40, height: 40, border: '3px solid #e5e5ea', borderTopColor: '#0071e3', borderRadius: '50%', animation: 'spin 0.8s linear infinite' },
-  connectCard: { background: '#fff', borderRadius: 24, padding: '48px 40px', maxWidth: 420, width: '100%', boxShadow: '0 4px 40px rgba(0,0,0,0.10)', textAlign: 'center' },
+  connectCard: { background: '#fff', borderRadius: 24, padding: '48px 40px', maxWidth: 440, width: '100%', boxShadow: '0 4px 40px rgba(0,0,0,0.10)', textAlign: 'center' },
   igIcon: { width: 72, height: 72, borderRadius: 22, background: 'linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, margin: '0 auto 24px', boxShadow: '0 8px 24px rgba(220,39,67,0.35)' },
   title: { fontSize: 28, fontWeight: 800, color: '#1c1c1e', letterSpacing: -0.5, marginBottom: 10, fontFamily: 'system-ui' },
-  sub: { fontSize: 15, color: '#86868b', lineHeight: 1.6, marginBottom: 28, fontFamily: 'system-ui' },
+  sub: { fontSize: 15, color: '#86868b', lineHeight: 1.6, marginBottom: 24, fontFamily: 'system-ui' },
   errorBox: { background: 'rgba(255,59,48,0.08)', border: '1px solid rgba(255,59,48,0.2)', borderRadius: 10, padding: '12px 14px', fontSize: 13, color: '#ff3b30', marginBottom: 16, textAlign: 'left', fontFamily: 'system-ui', lineHeight: 1.5 },
-  oauthBtn: { width: '100%', background: 'linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)', color: '#fff', border: 'none', borderRadius: 12, padding: '16px', fontFamily: 'system-ui', fontSize: 15, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 20px rgba(220,39,67,0.35)' },
+  oauthBtn: { width: '100%', background: 'linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)', color: '#fff', border: 'none', borderRadius: 12, padding: 16, fontFamily: 'system-ui', fontSize: 15, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 20px rgba(220,39,67,0.35)', marginBottom: 16 },
+  divider: { margin: '4px 0 16px' },
+  dividerText: { fontSize: 11, color: '#aeaeb2', fontFamily: 'system-ui', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' },
+  input: { width: '100%', background: '#f2f2f7', border: '1.5px solid rgba(0,0,0,0.13)', borderRadius: 10, padding: '13px 16px', fontFamily: 'system-ui', fontSize: 13, color: '#1c1c1e', outline: 'none', boxSizing: 'border-box' },
+  connectBtn: { width: '100%', background: '#1c1c1e', color: '#fff', border: 'none', borderRadius: 10, padding: 13, fontFamily: 'system-ui', fontSize: 14, fontWeight: 600, cursor: 'pointer', marginTop: 10 },
+  hint: { fontSize: 11, color: '#aeaeb2', marginTop: 12, lineHeight: 1.5, fontFamily: 'system-ui' },
   dash: { minHeight: '100vh', background: '#f2f2f7' },
   nav: { background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(0,0,0,0.08)', position: 'sticky', top: 0, zIndex: 100, padding: '0 24px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
   navBrand: { display: 'flex', alignItems: 'center', gap: 10 },
@@ -305,7 +316,7 @@ const styles = {
   liveDot: { width: 6, height: 6, borderRadius: '50%', background: '#34c759', display: 'inline-block' },
   reviewNotice: { display: 'flex', alignItems: 'flex-start', gap: 8, background: 'rgba(255,159,10,0.08)', border: '1px solid rgba(255,159,10,0.25)', borderRadius: 12, padding: '12px 16px', fontSize: 13, color: '#3a3a3c', lineHeight: 1.5, marginBottom: 16, fontFamily: 'system-ui' },
   kpiGrid: { display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12, marginBottom: 20 },
-  kpiCard: { background: '#fff', borderRadius: 18, border: '1px solid rgba(0,0,0,0.07)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', padding: 18, transition: 'opacity 0.2s' },
+  kpiCard: { background: '#fff', borderRadius: 18, border: '1px solid rgba(0,0,0,0.07)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', padding: 18 },
   kpiIcon: { width: 38, height: 38, borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, marginBottom: 12 },
   kpiValue: { fontSize: 28, fontWeight: 800, color: '#1c1c1e', letterSpacing: -1, lineHeight: 1, marginBottom: 4, fontFamily: 'system-ui' },
   kpiLocked: { fontSize: 22, marginBottom: 4, lineHeight: 1 },
