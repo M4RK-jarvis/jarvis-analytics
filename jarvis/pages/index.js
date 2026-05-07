@@ -164,4 +164,228 @@ export default function Home() {
           </button>
         </header>
 
-        {loadin
+        {loading && <p style={styles.loading}>Chargement des données...</p>}
+
+        {error && (
+          <div style={styles.error}>
+            <strong>Erreur :</strong> {error}
+          </div>
+        )}
+
+        {user && (
+          <section style={styles.profileCard}>
+            <div style={styles.profileHeader}>
+              {user.profile_picture_url && (
+                <img src={user.profile_picture_url} alt={user.username} style={styles.avatar} />
+              )}
+              <div>
+                <h2 style={styles.username}>@{user.username}</h2>
+                <p style={styles.accountType}>{user.account_type}</p>
+                {user.biography && <p style={styles.bio}>{user.biography}</p>}
+              </div>
+            </div>
+
+            <div style={styles.statsGrid}>
+              <div style={styles.statBox}>
+                <div style={styles.statValue}>{user.followers_count || 0}</div>
+                <div style={styles.statLabel}>Abonnés</div>
+              </div>
+              <div style={styles.statBox}>
+                <div style={styles.statValue}>{user.follows_count || 0}</div>
+                <div style={styles.statLabel}>Abonnements</div>
+              </div>
+              <div style={styles.statBox}>
+                <div style={styles.statValue}>{user.media_count || 0}</div>
+                <div style={styles.statLabel}>Publications</div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {media.length > 0 && (
+          <section style={styles.mediaSection}>
+            <h2 style={styles.sectionTitle}>Dernières publications</h2>
+            <div style={styles.mediaGrid}>
+              {media.map((m) => (
+                <a key={m.id} href={m.permalink} target="_blank" rel="noopener noreferrer" style={styles.mediaCard}>
+                  <img
+                    src={m.media_type === 'VIDEO' ? m.thumbnail_url : m.media_url}
+                    alt={m.caption || 'Publication'}
+                    style={styles.mediaImg}
+                  />
+                  <div style={styles.mediaStats}>
+                    <span>❤️ {m.like_count || 0}</span>
+                    <span>💬 {m.comments_count || 0}</span>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
+    </>
+  )
+}
+
+const styles = {
+  container: {
+    minHeight: '100vh',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    padding: '20px',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  },
+  card: {
+    background: 'white',
+    borderRadius: '20px',
+    padding: '40px',
+    maxWidth: '480px',
+    width: '100%',
+    boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+    textAlign: 'center',
+  },
+  logoCircle: {
+    width: '80px',
+    height: '80px',
+    margin: '0 auto 20px',
+    background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+    borderRadius: '20px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoEmoji: { fontSize: '40px' },
+  title: { fontSize: '32px', margin: '0 0 8px', color: '#1a1a1a' },
+  subtitle: { color: '#666', margin: '0 0 24px' },
+  error: {
+    background: '#fee',
+    color: '#c33',
+    padding: '12px 16px',
+    borderRadius: '12px',
+    marginBottom: '20px',
+    textAlign: 'left',
+    fontSize: '14px',
+  },
+  connectBtn: {
+    width: '100%',
+    padding: '16px',
+    fontSize: '16px',
+    fontWeight: '600',
+    color: 'white',
+    background: 'linear-gradient(135deg, #f5a623 0%, #e91e63 100%)',
+    border: 'none',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    marginBottom: '24px',
+  },
+  divider: {
+    color: '#999',
+    fontSize: '12px',
+    fontWeight: '600',
+    letterSpacing: '1px',
+    margin: '24px 0 16px',
+  },
+  input: {
+    width: '100%',
+    padding: '12px 16px',
+    fontSize: '14px',
+    border: '1px solid #ddd',
+    borderRadius: '12px',
+    marginBottom: '12px',
+    boxSizing: 'border-box',
+  },
+  tokenBtn: {
+    width: '100%',
+    padding: '14px',
+    fontSize: '15px',
+    fontWeight: '600',
+    color: 'white',
+    background: '#1a1a1a',
+    border: 'none',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    marginTop: '4px',
+  },
+  hint: { color: '#999', fontSize: '12px', marginTop: '16px' },
+  dashboard: {
+    minHeight: '100vh',
+    background: '#f5f7fa',
+    padding: '20px',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  },
+  header: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    maxWidth: '1200px',
+    margin: '0 auto 30px',
+  },
+  dashTitle: { fontSize: '24px', margin: 0, color: '#1a1a1a' },
+  logoutBtn: {
+    padding: '10px 20px',
+    background: '#1a1a1a',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontWeight: '600',
+  },
+  loading: { textAlign: 'center', color: '#666', padding: '40px' },
+  profileCard: {
+    maxWidth: '1200px',
+    margin: '0 auto 30px',
+    background: 'white',
+    borderRadius: '16px',
+    padding: '24px',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+  },
+  profileHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '20px',
+    marginBottom: '24px',
+    flexWrap: 'wrap',
+  },
+  avatar: { width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover' },
+  username: { fontSize: '24px', margin: '0 0 4px', color: '#1a1a1a' },
+  accountType: { color: '#666', margin: '0 0 8px', fontSize: '14px' },
+  bio: { color: '#444', margin: 0, fontSize: '14px' },
+  statsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+    gap: '16px',
+  },
+  statBox: {
+    background: '#f5f7fa',
+    padding: '20px',
+    borderRadius: '12px',
+    textAlign: 'center',
+  },
+  statValue: { fontSize: '28px', fontWeight: '700', color: '#1a1a1a' },
+  statLabel: { color: '#666', fontSize: '13px', marginTop: '4px' },
+  mediaSection: { maxWidth: '1200px', margin: '0 auto' },
+  sectionTitle: { fontSize: '20px', margin: '0 0 16px', color: '#1a1a1a' },
+  mediaGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+    gap: '16px',
+  },
+  mediaCard: {
+    background: 'white',
+    borderRadius: '12px',
+    overflow: 'hidden',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+    textDecoration: 'none',
+    color: 'inherit',
+  },
+  mediaImg: { width: '100%', height: '200px', objectFit: 'cover', display: 'block' },
+  mediaStats: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    padding: '12px',
+    fontSize: '13px',
+    color: '#444',
+  },
+}
