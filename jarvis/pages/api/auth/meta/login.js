@@ -6,12 +6,10 @@ export default function handler(req, res) {
     return res.status(500).json({ error: 'Variables META_APP_ID ou META_REDIRECT_URI manquantes.' })
   }
 
-  // Nouvelle API Instagram :
-  // - instagram_business_basic → accès au compte Instagram Business
-  // - pages_show_list          → nécessaire pour /me/accounts (trouver la Page liée)
-  const scope = 'instagram_business_basic,pages_show_list'
+  // Permissions demandées via Facebook Login for Business
+  const scope = 'instagram_business_basic,instagram_business_manage_insights,pages_show_list,business_management'
 
-  const authUrl = `https://www.instagram.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&response_type=code`
+  const authUrl = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&response_type=code`
 
   res.redirect(authUrl)
 }
