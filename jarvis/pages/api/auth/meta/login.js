@@ -6,10 +6,10 @@ export default function handler(req, res) {
     return res.status(500).json({ error: 'Variables META_APP_ID ou META_REDIRECT_URI manquantes.' })
   }
 
-  // Permissions via Facebook Login for Business pour accéder à Instagram Business
-  const scope = 'instagram_basic,instagram_manage_insights,pages_show_list,pages_read_engagement,business_management'
+  // Instagram API with Instagram Login (nouveaux scopes business)
+  const scope = 'instagram_business_basic,instagram_business_manage_insights'
 
-  const authUrl = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&response_type=code`
+  const authUrl = `https://www.instagram.com/oauth/authorize?enable_fb_login=0&force_authentication=1&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}`
 
   res.redirect(authUrl)
 }
