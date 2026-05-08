@@ -351,4 +351,34 @@ const styles = {
     gap: '16px',
   },
   statBox: {
-    background: '
+    background: '#f5f7fa',
+    padding: '20px',
+    borderRadius: '12px',
+    textAlign: 'center',
+  },
+  statValue: { fontSize: '28px', fontWeight: '700', color: '#1a1a1a' },
+  statLabel: { color: '#666', fontSize: '13px', marginTop: '4px' },
+  mediaSection: { maxWidth: '1200px', margin: '0 auto' },
+  sectionTitle: { fontSize: '20px', margin: '0 0 16px', color: '#1a1a1a' },
+  mediaGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+    gap: '16px',
+  },
+  mediaCard: {
+    background: 'white',
+    borderRadius: '12px',
+    overflow: 'hidden',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+    textDecoration: 'none',
+    color: 'inherit',
+  },
+  mediaImg: { width: '100%', height: '200px', objectFit: 'cover', display: 'block' },
+  mediaStats: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    padding: '12px',
+    fontSize: '13px',
+    color: '#444',
+  },
+}
