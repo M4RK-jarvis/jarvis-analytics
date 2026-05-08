@@ -6,6 +6,7 @@ export default function Home() {
   const [igUserId, setIgUserId] = useState('')
   const [user, setUser] = useState(null)
   const [media, setMedia] = useState([])
+  const [insights, setInsights] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -36,6 +37,7 @@ export default function Home() {
     setError('')
 
     try {
+      // 1) Profil utilisateur
       const userFields = 'user_id,username,name,account_type,profile_picture_url,followers_count,follows_count,media_count,biography'
       const userRes = await fetch(
         `https://graph.instagram.com/v21.0/me?fields=${userFields}&access_token=${accessToken}`
@@ -47,19 +49,34 @@ export default function Home() {
         setLoading(false)
         return
       }
-
       setUser(userData)
 
+      // 2) Médias récents
       const mediaFields = 'id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count'
       const mediaRes = await fetch(
         `https://graph.instagram.com/v21.0/me/media?fields=${mediaFields}&limit=12&access_token=${accessToken}`
       )
       const mediaData = await mediaRes.json()
 
-      if (mediaData.error) {
-        setError(`Media error: ${mediaData.error.message}`)
-      } else {
+      if (!mediaData.error) {
         setMedia(mediaData.data || [])
+      }
+
+      // 3) Insights du compte (30 derniers jours)
+      const since = Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60
+      const until = Math.floor(Date.now() / 1000)
+      const metrics = 'reach,profile_views,accounts_engaged'
+      const insightsRes = await fetch(
+        `https://graph.instagram.com/v21.0/me/insights?metric=${metrics}&period=day&metric_type=total_value&since=${since}&until=${until}&access_token=${accessToken}`
+      )
+      const insightsData = await insightsRes.json()
+
+      if (!insightsData.error && insightsData.data) {
+        const insightsMap = {}
+        insightsData.data.forEach((item) => {
+          insightsMap[item.name] = item.total_value?.value ?? 0
+        })
+        setInsights(insightsMap)
       }
 
     } catch (err) {
@@ -88,6 +105,7 @@ export default function Home() {
     setIgUserId('')
     setUser(null)
     setMedia([])
+    setInsights(null)
     setError('')
   }
 
@@ -190,6 +208,29 @@ export default function Home() {
               <div style={styles.statBox}>
                 <div style={styles.statValue}>{user.media_count || 0}</div>
                 <div style={styles.statLabel}>Posts</div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {insights && (
+          <section style={styles.insightsCard}>
+            <h2 style={styles.sectionTitle}>📈 Account insights (last 30 days)</h2>
+            <div style={styles.insightsGrid}>
+              <div style={styles.insightBox}>
+                <div style={styles.insightIcon}>👁️</div>
+                <div style={styles.insightValue}>{(insights.reach || 0).toLocaleString()}</div>
+                <div style={styles.insightLabel}>Reach</div>
+              </div>
+              <div style={styles.insightBox}>
+                <div style={styles.insightIcon}>👤</div>
+                <div style={styles.insightValue}>{(insights.profile_views || 0).toLocaleString()}</div>
+                <div style={styles.insightLabel}>Profile views</div>
+              </div>
+              <div style={styles.insightBox}>
+                <div style={styles.insightIcon}>💫</div>
+                <div style={styles.insightValue}>{(insights.accounts_engaged || 0).toLocaleString()}</div>
+                <div style={styles.insightLabel}>Accounts engaged</div>
               </div>
             </div>
           </section>
@@ -328,7 +369,7 @@ const styles = {
   loading: { textAlign: 'center', color: '#666', padding: '40px' },
   profileCard: {
     maxWidth: '1200px',
-    margin: '0 auto 30px',
+    margin: '0 auto 24px',
     background: 'white',
     borderRadius: '16px',
     padding: '24px',
@@ -358,8 +399,33 @@ const styles = {
   },
   statValue: { fontSize: '28px', fontWeight: '700', color: '#1a1a1a' },
   statLabel: { color: '#666', fontSize: '13px', marginTop: '4px' },
+  insightsCard: {
+    maxWidth: '1200px',
+    margin: '0 auto 24px',
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    borderRadius: '16px',
+    padding: '24px',
+    boxShadow: '0 8px 30px rgba(102, 126, 234, 0.3)',
+    color: 'white',
+  },
+  insightsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+    gap: '16px',
+    marginTop: '16px',
+  },
+  insightBox: {
+    background: 'rgba(255,255,255,0.15)',
+    backdropFilter: 'blur(10px)',
+    padding: '20px',
+    borderRadius: '12px',
+    textAlign: 'center',
+  },
+  insightIcon: { fontSize: '28px', marginBottom: '8px' },
+  insightValue: { fontSize: '32px', fontWeight: '700', color: 'white' },
+  insightLabel: { color: 'rgba(255,255,255,0.85)', fontSize: '13px', marginTop: '4px' },
   mediaSection: { maxWidth: '1200px', margin: '0 auto' },
-  sectionTitle: { fontSize: '20px', margin: '0 0 16px', color: '#1a1a1a' },
+  sectionTitle: { fontSize: '20px', margin: '0 0 16px', color: 'inherit' },
   mediaGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
