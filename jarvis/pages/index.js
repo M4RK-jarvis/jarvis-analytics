@@ -9,11 +9,9 @@ export default function Home() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  // Form inputs (mode développeur)
   const [tokenInput, setTokenInput] = useState('')
   const [igIdInput, setIgIdInput] = useState('')
 
-  // Récupère token + igid depuis l'URL au chargement
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const t = params.get('token')
@@ -28,7 +26,6 @@ export default function Home() {
     if (t && id) {
       setToken(t)
       setIgUserId(id)
-      // Nettoie l'URL pour ne pas exposer le token
       window.history.replaceState({}, document.title, '/')
       loadData(t)
     }
@@ -39,7 +36,6 @@ export default function Home() {
     setError('')
 
     try {
-      // 1) Profil utilisateur via Instagram Graph API (nouvelle API)
       const userFields = 'user_id,username,name,account_type,profile_picture_url,followers_count,follows_count,media_count,biography'
       const userRes = await fetch(
         `https://graph.instagram.com/v21.0/me?fields=${userFields}&access_token=${accessToken}`
@@ -47,14 +43,13 @@ export default function Home() {
       const userData = await userRes.json()
 
       if (userData.error) {
-        setError(`Erreur profil : ${userData.error.message}`)
+        setError(`Profile error: ${userData.error.message}`)
         setLoading(false)
         return
       }
 
       setUser(userData)
 
-      // 2) Liste des médias (les 12 derniers)
       const mediaFields = 'id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count'
       const mediaRes = await fetch(
         `https://graph.instagram.com/v21.0/me/media?fields=${mediaFields}&limit=12&access_token=${accessToken}`
@@ -62,13 +57,13 @@ export default function Home() {
       const mediaData = await mediaRes.json()
 
       if (mediaData.error) {
-        setError(`Erreur médias : ${mediaData.error.message}`)
+        setError(`Media error: ${mediaData.error.message}`)
       } else {
         setMedia(mediaData.data || [])
       }
 
     } catch (err) {
-      setError(err.message || 'Erreur de chargement')
+      setError(err.message || 'Loading error')
     } finally {
       setLoading(false)
     }
@@ -80,7 +75,7 @@ export default function Home() {
 
   function handleManualConnect() {
     if (!tokenInput || !igIdInput) {
-      setError('Renseigne le token et l\'ID Instagram')
+      setError('Please enter both token and Instagram ID')
       return
     }
     setToken(tokenInput)
@@ -96,7 +91,6 @@ export default function Home() {
     setError('')
   }
 
-  // Si pas connecté : page de login
   if (!token) {
     return (
       <>
@@ -109,23 +103,23 @@ export default function Home() {
               <div style={styles.logoEmoji}>📊</div>
             </div>
             <h1 style={styles.title}>Jarvis</h1>
-            <p style={styles.subtitle}>Connecte ton compte Instagram professionnel.</p>
+            <p style={styles.subtitle}>Connect your Instagram professional account.</p>
 
             {error && (
               <div style={styles.error}>
-                <strong>Erreur :</strong> {error}
+                <strong>Error:</strong> {error}
               </div>
             )}
 
             <button onClick={handleConnect} style={styles.connectBtn}>
-              📸 Connecter mon Instagram
+              📸 Connect my Instagram
             </button>
 
-            <div style={styles.divider}>OU MODE DÉVELOPPEUR</div>
+            <div style={styles.divider}>OR DEVELOPER MODE</div>
 
             <input
               type="text"
-              placeholder="Access Token (depuis Meta Developer)"
+              placeholder="Access Token (from Meta Developer)"
               value={tokenInput}
               onChange={(e) => setTokenInput(e.target.value)}
               style={styles.input}
@@ -138,11 +132,11 @@ export default function Home() {
               style={styles.input}
             />
             <button onClick={handleManualConnect} style={styles.tokenBtn}>
-              Connecter avec le token
+              Connect with token
             </button>
 
             <p style={styles.hint}>
-              Token disponible dans Meta Developer → API Instagram → Générez des tokens d'accès
+              Token available in Meta Developer → Instagram API → Generate access tokens
             </p>
           </div>
         </div>
@@ -150,7 +144,6 @@ export default function Home() {
     )
   }
 
-  // Connecté : dashboard
   return (
     <>
       <Head>
@@ -160,15 +153,15 @@ export default function Home() {
         <header style={styles.header}>
           <h1 style={styles.dashTitle}>📊 Jarvis Analytics</h1>
           <button onClick={handleDisconnect} style={styles.logoutBtn}>
-            Déconnexion
+            Log out
           </button>
         </header>
 
-        {loading && <p style={styles.loading}>Chargement des données...</p>}
+        {loading && <p style={styles.loading}>Loading data...</p>}
 
         {error && (
           <div style={styles.error}>
-            <strong>Erreur :</strong> {error}
+            <strong>Error:</strong> {error}
           </div>
         )}
 
@@ -188,15 +181,15 @@ export default function Home() {
             <div style={styles.statsGrid}>
               <div style={styles.statBox}>
                 <div style={styles.statValue}>{user.followers_count || 0}</div>
-                <div style={styles.statLabel}>Abonnés</div>
+                <div style={styles.statLabel}>Followers</div>
               </div>
               <div style={styles.statBox}>
                 <div style={styles.statValue}>{user.follows_count || 0}</div>
-                <div style={styles.statLabel}>Abonnements</div>
+                <div style={styles.statLabel}>Following</div>
               </div>
               <div style={styles.statBox}>
                 <div style={styles.statValue}>{user.media_count || 0}</div>
-                <div style={styles.statLabel}>Publications</div>
+                <div style={styles.statLabel}>Posts</div>
               </div>
             </div>
           </section>
@@ -204,13 +197,13 @@ export default function Home() {
 
         {media.length > 0 && (
           <section style={styles.mediaSection}>
-            <h2 style={styles.sectionTitle}>Dernières publications</h2>
+            <h2 style={styles.sectionTitle}>Latest posts</h2>
             <div style={styles.mediaGrid}>
               {media.map((m) => (
                 <a key={m.id} href={m.permalink} target="_blank" rel="noopener noreferrer" style={styles.mediaCard}>
                   <img
                     src={m.media_type === 'VIDEO' ? m.thumbnail_url : m.media_url}
-                    alt={m.caption || 'Publication'}
+                    alt={m.caption || 'Post'}
                     style={styles.mediaImg}
                   />
                   <div style={styles.mediaStats}>
@@ -358,34 +351,4 @@ const styles = {
     gap: '16px',
   },
   statBox: {
-    background: '#f5f7fa',
-    padding: '20px',
-    borderRadius: '12px',
-    textAlign: 'center',
-  },
-  statValue: { fontSize: '28px', fontWeight: '700', color: '#1a1a1a' },
-  statLabel: { color: '#666', fontSize: '13px', marginTop: '4px' },
-  mediaSection: { maxWidth: '1200px', margin: '0 auto' },
-  sectionTitle: { fontSize: '20px', margin: '0 0 16px', color: '#1a1a1a' },
-  mediaGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-    gap: '16px',
-  },
-  mediaCard: {
-    background: 'white',
-    borderRadius: '12px',
-    overflow: 'hidden',
-    boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-    textDecoration: 'none',
-    color: 'inherit',
-  },
-  mediaImg: { width: '100%', height: '200px', objectFit: 'cover', display: 'block' },
-  mediaStats: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    padding: '12px',
-    fontSize: '13px',
-    color: '#444',
-  },
-}
+    background: '
